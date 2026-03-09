@@ -14,7 +14,6 @@ import { useAuth } from '../context/AuthContext';
 const adlLevels = ['Independent', 'Supervision', 'Partial Assist', 'Full Assist'] as const;
 const iadlLevels = ['Independent', 'Needs Assistance'] as const;
 
-const DUMMY_PATIENT_ID = '00000000-0000-0000-0000-000000000000';
 const FORM_NAME = 'GAFC Care Plan';
 
 const carePlanSchema = z.object({
@@ -115,7 +114,7 @@ type CarePlanValues = z.infer<typeof carePlanSchema>;
 export const GAFCCarePlan: React.FC = () => {
   const { profile } = useAuth();
   const [searchParams] = useSearchParams();
-  const patientId = searchParams.get('patientId') || DUMMY_PATIENT_ID;
+  const patientId = searchParams.get('patientId');
 
   const { register, control, handleSubmit, setValue, watch, reset, formState: { errors, isSubmitting } } = useForm<CarePlanValues>({
     resolver: zodResolver(carePlanSchema),
@@ -157,7 +156,7 @@ export const GAFCCarePlan: React.FC = () => {
   });
 
   useEffect(() => {
-    if (patientId && patientId !== DUMMY_PATIENT_ID) {
+    if (patientId) {
       const fetchPatient = async () => {
         const { data, error } = await supabase
           .from('patients')
@@ -226,7 +225,7 @@ export const GAFCCarePlan: React.FC = () => {
       }
       
       if (!patientExists) {
-        throw new Error(`The patient (ID: ${patientId}) does not exist in the database. Please go to the Dashboard and click "Setup Now" to create the test patient.`);
+        throw new Error(`The patient (ID: ${patientId}) does not exist in the database.`);
       }
 
       // 2. Insert into form_responses

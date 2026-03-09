@@ -383,12 +383,7 @@ INSERT INTO public.forms (name, description, schema) VALUES
 ('Discharge Summary', 'Final documentation upon patient discharge', '{}'::jsonb)
 ON CONFLICT (name) DO UPDATE SET 
     description = EXCLUDED.description,
-    schema = COALESCE(public.forms.schema, '{}'::jsonb);
-
--- 6. Seed Test Patient
-INSERT INTO public.patients (id, first_name, last_name, dob, gender, status, is_active)
-VALUES ('00000000-0000-0000-0000-000000000000', 'Test', 'Patient', '1950-01-01', 'Male', 'active', TRUE)
-ON CONFLICT (id) DO NOTHING;`;
+    schema = COALESCE(public.forms.schema, '{}'::jsonb);`;
 
   const fetchDashboardData = async () => {
     try {
@@ -420,16 +415,40 @@ ON CONFLICT (id) DO NOTHING;`;
         .order('created_at', { ascending: false })
         .limit(4);
 
-      // 5. Mock Activity Data for Chart (In a real app, we'd aggregate this from DB)
-      const mockActivity = [
-        { name: 'Mon', visits: 12, forms: 8 },
-        { name: 'Tue', visits: 19, forms: 15 },
-        { name: 'Wed', visits: 15, forms: 12 },
-        { name: 'Thu', visits: 22, forms: 18 },
-        { name: 'Fri', visits: 18, forms: 14 },
-        { name: 'Sat', visits: 5, forms: 3 },
-        { name: 'Sun', visits: 2, forms: 1 },
-      ];
+      // 5. Fetch Activity Data for Chart (Aggregate from DB)
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const last7Days = Array.from({ length: 7 }).map((_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        return {
+          date: d.toISOString().split('T')[0],
+          name: days[d.getDay()],
+          visits: 0,
+          forms: 0
+        };
+      });
+
+      // Fetch visits for last 7 days
+      const { data: recentVisits } = await supabase
+        .from('visits')
+        .select('scheduled_at')
+        .gte('scheduled_at', last7Days[0].date);
+
+      // Fetch forms for last 7 days
+      const { data: recentForms } = await supabase
+        .from('form_responses')
+        .select('created_at')
+        .gte('created_at', last7Days[0].date);
+
+      const activityData = last7Days.map(day => {
+        const dayVisits = recentVisits?.filter(v => v.scheduled_at.startsWith(day.date)).length || 0;
+        const dayForms = recentForms?.filter(f => f.created_at.startsWith(day.date)).length || 0;
+        return {
+          name: day.name,
+          visits: dayVisits,
+          forms: dayForms
+        };
+      });
 
       setStats({
         activePatients: patientCount || 0,
@@ -438,7 +457,7 @@ ON CONFLICT (id) DO NOTHING;`;
         complianceScore: 98,
       });
       setRecentActivity(logs || []);
-      setActivityData(mockActivity);
+      setActivityData(activityData);
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error);

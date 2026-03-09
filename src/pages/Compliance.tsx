@@ -22,6 +22,7 @@ interface ComplianceStat {
 export const Compliance: React.FC = () => {
   const [stats, setStats] = useState<ComplianceStat[]>([]);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [criticalAlerts, setCriticalAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -72,18 +73,41 @@ export const Compliance: React.FC = () => {
           label: 'Care Plans (Active)', 
           value: carePlansCount || 0, 
           total: total, 
-          status: (carePlansCount || 0) / total > 0.9 ? 'good' : 'warning' 
+          status: total === 0 ? 'good' : (carePlansCount || 0) / total > 0.9 ? 'good' : 'warning' 
         },
         { 
           label: 'Monthly Progress Notes', 
           value: progressNotesCount || 0, 
           total: total, 
-          status: (progressNotesCount || 0) / total > 0.8 ? 'good' : 'warning' 
+          status: total === 0 ? 'good' : (progressNotesCount || 0) / total > 0.8 ? 'good' : 'warning' 
         },
-        { label: 'Staff Certifications', value: 12, total: 15, status: 'critical' },
+        { label: 'Staff Certifications', value: 0, total: 0, status: 'good' },
         { label: 'Annual Assessments', value: total, total: total, status: 'good' },
       ]);
       setRecentActivity(logs || []);
+
+      // 6. Fetch Alerts (Real checks)
+      const alerts: any[] = [];
+      
+      // Check for patients without care plans
+      if (total > (carePlansCount || 0)) {
+        alerts.push({
+          title: 'Missing Care Plan',
+          patient: 'Multiple Patients',
+          days: `${total - (carePlansCount || 0)} patients missing care plans`
+        });
+      }
+
+      // Check for patients without progress notes this month
+      if (total > (progressNotesCount || 0)) {
+        alerts.push({
+          title: 'Missing Progress Note',
+          patient: 'Multiple Patients',
+          days: `${total - (progressNotesCount || 0)} notes due this month`
+        });
+      }
+
+      setCriticalAlerts(alerts);
 
     } catch (error) {
       console.error('Error fetching compliance data:', error);
@@ -172,17 +196,17 @@ export const Compliance: React.FC = () => {
               Critical Alerts
             </h3>
             <div className="space-y-4">
-              {[
-                { title: 'Expired Care Plan', patient: 'Smith, John', days: 'Expired 3 days ago' },
-                { title: 'Missing Progress Note', patient: 'Doe, Jane', days: 'Due today' },
-                { title: 'License Expiring', staff: 'Nurse Sarah', days: 'Expires in 5 days' },
-              ].map((alert, i) => (
-                <div key={i} className="p-4 bg-red-50/50 border border-red-100 rounded-2xl space-y-1">
-                  <p className="text-sm font-bold text-red-900">{alert.title}</p>
-                  <p className="text-xs text-red-700">{alert.patient || alert.staff}</p>
-                  <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider">{alert.days}</p>
-                </div>
-              ))}
+              {criticalAlerts.length === 0 ? (
+                <p className="text-sm text-zinc-500 text-center py-4">No critical alerts.</p>
+              ) : (
+                criticalAlerts.map((alert, i) => (
+                  <div key={i} className="p-4 bg-red-50/50 border border-red-100 rounded-2xl space-y-1">
+                    <p className="text-sm font-bold text-red-900">{alert.title}</p>
+                    <p className="text-xs text-red-700">{alert.patient || alert.staff}</p>
+                    <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider">{alert.days}</p>
+                  </div>
+                ))
+              )}
             </div>
             <Button variant="ghost" className="w-full mt-6 text-sm text-zinc-500">View All Alerts</Button>
           </div>

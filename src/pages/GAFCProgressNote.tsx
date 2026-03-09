@@ -13,7 +13,6 @@ import { useAuth } from '../context/AuthContext';
 
 const adlLevels = ['Independent', 'Needs Cueing', 'Needs Assistance', 'Dependent'] as const;
 
-const DUMMY_PATIENT_ID = '00000000-0000-0000-0000-000000000000';
 const FORM_NAME = 'GAFC Progress Note';
 
 const gafcSchema = z.object({
@@ -94,7 +93,7 @@ const ADL_TASKS = [
 export const GAFCProgressNote: React.FC = () => {
   const { profile } = useAuth();
   const [searchParams] = useSearchParams();
-  const patientId = searchParams.get('patientId') || DUMMY_PATIENT_ID;
+  const patientId = searchParams.get('patientId');
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors, isSubmitting } } = useForm<GAFCFormValues>({
     resolver: zodResolver(gafcSchema),
@@ -129,7 +128,7 @@ export const GAFCProgressNote: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (patientId && patientId !== DUMMY_PATIENT_ID) {
+    if (patientId) {
       const fetchPatient = async () => {
         const { data, error } = await supabase
           .from('patients')
@@ -182,7 +181,7 @@ export const GAFCProgressNote: React.FC = () => {
       }
       
       if (!patientExists) {
-        throw new Error(`The patient (ID: ${patientId}) does not exist in the database. If this is a test, please go to the Dashboard and click "Setup Now" to create the test patient.`);
+        throw new Error(`The patient (ID: ${patientId}) does not exist in the database.`);
       }
 
       // 2. Insert into form_responses
@@ -259,68 +258,6 @@ export const GAFCProgressNote: React.FC = () => {
     }
   };
 
-  const handleFillSampleData = () => {
-    reset({
-      participantName: 'Test Patient',
-      dob: '1980-01-01',
-      gafcProvider: 'Partners Home Nursing',
-      visitDate: new Date().toISOString().split('T')[0],
-      visitTime: '10:00',
-      location: 'Patient Home',
-      staffNameTitle: profile?.full_name || 'Clinical Worker',
-      reasonForVisit: 'Monthly GAFC nursing visit and safety check.',
-      subjective: {
-        currentConcerns: 'None reported.',
-        changesSinceLastVisit: 'Stable.',
-        painSymptoms: 'None.',
-        moodMentalStatus: 'Alert and oriented.',
-        participantComments: 'Feeling well today.'
-      },
-      objective: {
-        generalAppearance: 'Well-groomed, alert.',
-        vitals: {
-          bp: '120/80',
-          hr: '72',
-          rr: '16',
-          temp: '98.6',
-          spo2: '98%'
-        },
-        physicalAssessment: {
-          respiratory: 'Clear to auscultation.',
-          cardiac: 'Regular rate and rhythm.',
-          skinIntegrity: 'Intact.',
-          mobilityGait: 'Steady with cane.',
-          nutritionAppetite: 'Good.'
-        }
-      },
-      environmentSafety: {
-        cleanliness: 'Clean.',
-        clutterHazards: 'None noted.',
-        functioningUtilities: 'All working.',
-        emergencyPlanAwareness: 'Confirmed.'
-      },
-      medicationReview: {
-        presentAndLabeled: 'Yes',
-        ableToSelfAdminister: 'Yes',
-        issuesNoted: 'None.'
-      },
-      adls: ADL_TASKS.reduce((acc, task) => ({
-        ...acc,
-        [task]: { level: 'Independent', notes: 'No issues.' }
-      }), {}),
-      assessment: 'Participant remains stable and eligible for GAFC services.',
-      interventions: ['Medication review', 'Safety assessment', 'Vitals check'],
-      education: 'Reviewed fall prevention and emergency procedures.',
-      plan: {
-        followUpActions: 'Continue current care plan.',
-        referralsCoordination: 'None needed.',
-        nextScheduledVisit: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        participantInstructedToReport: 'Any changes in condition.'
-      },
-      signatureDate: new Date().toISOString().split('T')[0]
-    });
-  };
-
   return (
     <div className="max-w-5xl mx-auto p-8">
       <Link to="/clinical-forms" className="flex items-center gap-2 text-zinc-500 hover:text-partners-blue-dark transition-colors mb-6 group no-print">
@@ -336,14 +273,6 @@ export const GAFCProgressNote: React.FC = () => {
           <p className="text-partners-gray">Complete the monthly clinical progress note.</p>
         </div>
         <div className="flex gap-3 no-print">
-          <Button 
-            variant="ghost" 
-            type="button" 
-            onClick={handleFillSampleData}
-            className="text-zinc-500"
-          >
-            Fill Sample Data
-          </Button>
           <Button 
             variant="secondary" 
             type="button" 

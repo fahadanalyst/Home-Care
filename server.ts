@@ -182,24 +182,6 @@ async function startServer() {
         }
       }
 
-      // 2. Seed Dummy Patient
-      const { data: existingPatient } = await supabaseAdmin
-        .from('patients')
-        .select('id')
-        .eq('id', '00000000-0000-0000-0000-000000000000')
-        .maybeSingle();
-
-      if (!existingPatient) {
-        await supabaseAdmin.from('patients').insert([{
-          id: '00000000-0000-0000-0000-000000000000',
-          first_name: 'Test',
-          last_name: 'Patient',
-          dob: '1980-01-01',
-          gender: 'other',
-          ssn_encrypted: 'encrypted_ssn'
-        }]);
-      }
-
       console.log("Server: Database setup completed successfully.");
       res.json({ success: true, message: 'Database setup completed successfully.' });
     } catch (error: any) {

@@ -178,15 +178,27 @@ export const Schedule: React.FC = () => {
             <div className="space-y-4 mt-4">
               <div className="flex justify-between items-center text-sm">
                 <span className="opacity-70">Total Visits</span>
-                <span className="font-bold">8</span>
+                <span className="font-bold">
+                  {visits.filter(v => new Date(v.scheduled_at).toDateString() === new Date().toDateString()).length}
+                </span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="opacity-70">Completed</span>
-                <span className="font-bold">3</span>
+                <span className="font-bold">
+                  {visits.filter(v => 
+                    new Date(v.scheduled_at).toDateString() === new Date().toDateString() && 
+                    v.status === 'completed'
+                  ).length}
+                </span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="opacity-70">Pending</span>
-                <span className="font-bold">5</span>
+                <span className="font-bold">
+                  {visits.filter(v => 
+                    new Date(v.scheduled_at).toDateString() === new Date().toDateString() && 
+                    v.status !== 'completed'
+                  ).length}
+                </span>
               </div>
             </div>
           </div>

@@ -191,7 +191,3 @@ INSERT INTO forms (id, name, description, schema) VALUES
 ('f2b2b2b2-b2b2-b2b2-b2b2-f2b2b2b2b2b2', 'Clinical Note', 'General clinical documentation', '{}')
 ON CONFLICT (id) DO NOTHING;
 
--- Seed a dummy patient for testing
-INSERT INTO patients (id, first_name, last_name, dob, gender, ssn_encrypted) VALUES
-('00000000-0000-0000-0000-000000000000', 'Test', 'Patient', '1980-01-01', 'other', 'encrypted_ssn')
-ON CONFLICT (id) DO NOTHING;
