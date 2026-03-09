@@ -22,7 +22,7 @@ import { Schedule } from './pages/Schedule';
 import { ClinicalNotes } from './pages/ClinicalNotes';
 import { Compliance } from './pages/Compliance';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { Shield, Lock, Mail, AlertCircle } from 'lucide-react';
+import { Shield, Lock, Mail, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Button } from './components/Button';
 import { supabase, waitForSupabaseInitialization, withTimeout } from './services/supabase';
 
@@ -31,6 +31,7 @@ import { Logo } from './components/Logo';
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,33 +42,33 @@ const Login: React.FC = () => {
     setError(null);
 
     try {
-      // Start Supabase initialization in the background, don't block login
-      console.log('Login: Triggering Supabase warm-up in background...');
-      waitForSupabaseInitialization().catch(err => 
-        console.warn('Login: Background initialization warning:', err)
-      );
+      // Supabase initialization is already handled in main.tsx and AuthContext
+      console.log('Login: Supabase status check...');
     } catch (initErr: any) {
-      console.warn('Login: Initialization trigger failed:', initErr);
+      console.warn('Login: Initialization check failed:', initErr);
     }
     
     let isTimedOut = false;
     const loginTimeout = setTimeout(() => {
-      console.warn('Login request timed out after 90s');
+      console.warn('Login request timed out after 120s');
       isTimedOut = true;
       setLoading(false);
       setError('Login request timed out. This usually happens if the database connection is interrupted or the service is cold-starting. Please try again or refresh the page.');
-    }, 90000);
+    }, 120000);
 
     try {
       console.log('Calling supabase.auth.signInWithPassword for:', email);
       const startTime = Date.now();
+      
+      // Increase timeout to 110s to give it more room before the global 120s timeout
       const { data, error } = (await withTimeout(
         supabase.auth.signInWithPassword({ 
-          email: email.trim().toLowerCase(), 
+          email: email.trim(), 
           password 
         }),
-        60000 // 60s timeout for the sign-in call itself
+        110000
       )) as any;
+      
       const duration = Date.now() - startTime;
       console.log(`Supabase sign in response received after ${duration}ms:`, { hasData: !!data, hasError: !!error });
       
@@ -78,25 +79,30 @@ const Login: React.FC = () => {
         console.error('Sign in error details:', error);
         if (error.message === 'Invalid login credentials' || error.message === 'Supabase not configured') {
           setError('Invalid email or password. Please check your credentials and try again.');
-        } else if (error.message.includes('Database error querying schema')) {
-          setError('Database connection error. This usually happens if the .env file is missing or the database is temporarily unavailable. Please contact the administrator.');
+        } else if (error.message.includes('Database error querying schema') || error.message.includes('timeout')) {
+          setError('Connection error or timeout. This can happen during service cold-starts. Please try again in a few seconds.');
         } else {
           setError(error.message);
         }
       } else {
-        console.log('Sign in successful, verifying session manually...');
+        console.log('Sign in successful, verifying session...');
+        // We don't need to manually verify here as AuthContext will pick it up
+        // but we can do a quick check to be sure
         const { data: sessionData } = await supabase.auth.getSession();
-        console.log('Manual session check result:', !!sessionData?.session?.user);
-        if (sessionData?.session?.user) {
-          console.log('Session verified, redirecting...');
-        }
+        console.log('Session check result:', !!sessionData?.session?.user);
       }
     } catch (err: any) {
+      if (isTimedOut) return;
+      clearTimeout(loginTimeout);
       console.error('Unexpected login error caught:', err);
-      setError(err.message || 'An unexpected error occurred.');
+      
+      if (err.message?.includes('timeout')) {
+        setError('Login request timed out. The service might be cold-starting. Please try again.');
+      } else {
+        setError(err.message || 'An unexpected error occurred.');
+      }
     } finally {
       if (!isTimedOut) {
-        console.log('Login process finished, clearing loading state');
         setLoading(false);
       }
     }
@@ -132,13 +138,21 @@ const Login: React.FC = () => {
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                className="w-full pl-10 pr-12 py-3 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
                 placeholder="••••••••"
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors p-1"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 

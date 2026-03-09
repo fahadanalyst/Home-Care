@@ -38,10 +38,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Safety timeout to prevent indefinite loading
       timeoutId = setTimeout(() => {
         if (loading) {
-          console.log('Auth check taking longer than expected (10s), showing login screen...');
+          console.log('Auth check taking longer than expected (20s), showing login screen...');
           setLoading(false);
         }
-      }, 10000);
+      }, 20000);
 
       try {
         // Check active sessions and sets the user

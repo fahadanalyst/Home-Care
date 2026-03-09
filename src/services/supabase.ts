@@ -19,16 +19,25 @@ export const getSupabase = () => {
     return null;
   }
 
-  if (!supabaseInstance) {
-    console.log('Supabase Service: Initializing client with URL:', url);
-    try {
-      supabaseInstance = createClient(url, key);
-      console.log('Supabase Service: Client initialized successfully');
-    } catch (err) {
-      console.error('Supabase Service: Failed to initialize client:', err);
-      return null;
+    if (!supabaseInstance) {
+      console.log('Supabase Service: Initializing client with URL:', url);
+      try {
+        supabaseInstance = createClient(url, key, {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true
+          },
+          global: {
+            headers: { 'x-application-name': 'partners-home-nursing' }
+          }
+        });
+        console.log('Supabase Service: Client initialized successfully');
+      } catch (err) {
+        console.error('Supabase Service: Failed to initialize client:', err);
+        return null;
+      }
     }
-  }
   return supabaseInstance;
 };
 
@@ -309,20 +318,21 @@ export const initializeFormCache = async (): Promise<void> => {
       console.log('Supabase Service: Initializing form cache...');
       
       const fetchData = async () => {
+        console.log('Supabase Service: Fetching forms for cache...');
         const { data, error } = (await withTimeout(
           client
             .from('forms')
             .select('id, name')
             .eq('is_active', true) as any,
-          30000 // Reduced to 30s per attempt but we have retries
+          20000 // 20s per attempt
         )) as any;
         
         if (error) throw error;
         return data;
       };
 
-      // Use retry mechanism for the actual data fetch
-      const data = await withRetry(fetchData, 3, 3000);
+      // Use retry mechanism for the actual data fetch - 2 retries with 5s delay
+      const data = await withRetry(fetchData, 2, 5000);
       
       if (data) {
         const newCache: Record<string, string> = {};
