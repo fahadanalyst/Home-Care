@@ -132,14 +132,48 @@ export const Compliance: React.FC = () => {
     log.table_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleExport = () => {
+    try {
+      const headers = ['Metric', 'Completed', 'Total', 'Percentage'];
+      const rows = stats.map(s => [
+        s.label,
+        s.value.toString(),
+        s.total.toString(),
+        `${s.total > 0 ? Math.round((s.value / s.total) * 100) : 0}%`
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(r => r.join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Compliance_Report_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Failed to export report.');
+    }
+  };
+
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
-      <div className="flex justify-between items-end">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-zinc-900 italic">Compliance</h1>
-          <p className="text-zinc-500">Monitor regulatory requirements and documentation status</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 italic">Compliance</h1>
+          <p className="text-sm md:text-base text-zinc-500">Monitor regulatory requirements and documentation status</p>
         </div>
-        <Button variant="secondary" className="rounded-full px-6">
+        <Button 
+          variant="secondary" 
+          className="rounded-full px-6 w-full sm:w-auto"
+          onClick={handleExport}
+        >
           <BarChart3 className="w-4 h-4 mr-2" />
           Export Report
         </Button>

@@ -50,6 +50,8 @@ export const Patients: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<PatientFormValues>({
     resolver: zodResolver(patientSchema)
@@ -119,24 +121,25 @@ export const Patients: React.FC = () => {
   };
 
   const filteredPatients = patients.filter(p => 
+    (filterStatus === 'All' || p.status === filterStatus.toLowerCase()) &&
     `${p.first_name} ${p.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
-      <div className="flex justify-between items-end">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-zinc-900 italic">Patients</h1>
-          <p className="text-zinc-500">Manage participant records and clinical history</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 italic">Patients</h1>
+          <p className="text-sm md:text-base text-zinc-500">Manage participant records and clinical history</p>
         </div>
-        <Button className="rounded-full px-6" onClick={() => setIsModalOpen(true)}>
+        <Button className="rounded-full px-6 w-full sm:w-auto" onClick={() => setIsModalOpen(true)}>
           <UserPlus className="w-4 h-4 mr-2" />
           Add Patient
         </Button>
       </div>
 
-      <div className="flex gap-4 items-center">
-        <div className="relative flex-1">
+      <div className="flex flex-col md:flex-row gap-4 items-center">
+        <div className="relative w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
           <input
             type="text"
@@ -146,13 +149,37 @@ export const Patients: React.FC = () => {
             className="w-full pl-12 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all shadow-sm"
           />
         </div>
-        <Button variant="secondary" className="rounded-2xl h-[50px]">
-          <Filter className="w-4 h-4 mr-2" />
-          Filter
-        </Button>
+        <div className="relative w-full md:w-auto">
+          <Button 
+            variant="secondary" 
+            className="rounded-2xl h-[50px] w-full md:w-auto"
+            onClick={() => setShowFilterMenu(!showFilterMenu)}
+          >
+            <Filter className="w-4 h-4 mr-2" />
+            {filterStatus === 'All' ? 'Filter' : filterStatus}
+          </Button>
+          
+          {showFilterMenu && (
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl border border-zinc-200 shadow-xl z-50 overflow-hidden">
+              {['All', 'Active', 'Inactive'].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => {
+                    setFilterStatus(status);
+                    setShowFilterMenu(false);
+                  }}
+                  className={`w-full text-left px-4 py-3 text-sm hover:bg-zinc-50 transition-colors ${filterStatus === status ? 'text-partners-blue-dark font-bold bg-partners-blue-dark/5' : 'text-zinc-600'}`}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-zinc-50 border-bottom border-zinc-200">
@@ -229,6 +256,64 @@ export const Patients: React.FC = () => {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Card List */}
+      <div className="md:hidden space-y-4">
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-40 bg-white rounded-3xl border border-zinc-200 animate-pulse"></div>
+          ))
+        ) : filteredPatients.length === 0 ? (
+          <div className="bg-white p-12 rounded-3xl border border-zinc-200 text-center text-zinc-500">
+            No patients found.
+          </div>
+        ) : (
+          filteredPatients.map((patient) => (
+            <div key={patient.id} className="bg-white p-4 rounded-3xl border border-zinc-200 shadow-sm space-y-4">
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-partners-blue-dark/10 text-partners-blue-dark flex items-center justify-center font-bold">
+                    {patient.first_name[0]}{patient.last_name[0]}
+                  </div>
+                  <div>
+                    <p className="font-bold text-zinc-900">{patient.last_name}, {patient.first_name}</p>
+                    <p className="text-xs text-zinc-500">ID: {patient.id.slice(0, 8)}</p>
+                  </div>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                  patient.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-zinc-100 text-zinc-600'
+                }`}>
+                  {patient.status}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-xs text-zinc-400 font-bold uppercase">DOB</p>
+                  <p className="text-zinc-600">{new Date(patient.dob).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-zinc-400 font-bold uppercase">Last Visit</p>
+                  <p className="text-zinc-600">--</p>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Link to={`/progress-note?patientId=${patient.id}`} className="flex-1">
+                  <Button variant="secondary" size="sm" className="w-full text-xs">
+                    Progress Note
+                  </Button>
+                </Link>
+                <Link to={`/care-plan?patientId=${patient.id}`} className="flex-1">
+                  <Button variant="secondary" size="sm" className="w-full text-xs">
+                    Care Plan
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       <Modal

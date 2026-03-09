@@ -7,7 +7,8 @@ import {
   Settings, 
   LogOut, 
   ShieldCheck,
-  ClipboardList
+  ClipboardList,
+  X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useLocation } from 'react-router-dom';
@@ -15,7 +16,11 @@ import { clsx } from 'clsx';
 
 import { Logo } from './Logo';
 
-export const Sidebar: React.FC = () => {
+interface SidebarProps {
+  onClose?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const { profile, signOut } = useAuth();
   const location = useLocation();
 
@@ -33,9 +38,14 @@ export const Sidebar: React.FC = () => {
   const filteredItems = menuItems.filter(item => item.roles.includes(role));
 
   return (
-    <div className="w-64 h-screen bg-white border-r border-zinc-200 flex flex-col">
-      <div className="p-6">
+    <div className="w-64 h-full bg-white border-r border-zinc-200 flex flex-col">
+      <div className="p-6 flex justify-between items-center">
         <Logo showText size={40} />
+        {onClose && (
+          <button onClick={onClose} className="lg:hidden p-2 text-zinc-400 hover:text-zinc-600">
+            <X size={20} />
+          </button>
+        )}
       </div>
 
       <nav className="flex-1 px-4 space-y-1">
@@ -43,6 +53,7 @@ export const Sidebar: React.FC = () => {
           <Link
             key={item.path}
             to={item.path}
+            onClick={onClose}
             className={clsx(
               'flex items-center gap-3 px-3 py-2 rounded-xl transition-colors',
               location.pathname === item.path

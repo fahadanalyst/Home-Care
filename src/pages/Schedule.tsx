@@ -10,13 +10,15 @@ import {
   ChevronRight,
   Filter,
   FileText,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { clsx } from 'clsx';
 
 const visitSchema = z.object({
   patient_id: z.string().min(1, 'Required'),
@@ -61,6 +63,10 @@ export const Schedule: React.FC = () => {
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<VisitFormValues>({
     resolver: zodResolver(visitSchema)
@@ -126,19 +132,70 @@ export const Schedule: React.FC = () => {
     }
   };
 
+  const updateVisitStatus = async (visitId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('visits')
+        .update({ status: newStatus })
+        .eq('id', visitId);
+
+      if (error) throw error;
+      
+      if (selectedVisit?.id === visitId) {
+        setSelectedVisit(prev => prev ? { ...prev, status: newStatus } : null);
+      }
+      
+      fetchVisits();
+    } catch (error: any) {
+      console.error('Error updating status:', error);
+      alert('Error updating status: ' + error.message);
+    }
+  };
+
+  const filteredVisits = visits.filter(v => {
+    if (filterStatus === 'all') return true;
+    return v.status === filterStatus;
+  });
+
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
-      <div className="flex justify-between items-end">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-zinc-900 italic">Schedule</h1>
-          <p className="text-zinc-500">Manage nursing visits and caregiver appointments</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 italic">Schedule</h1>
+          <p className="text-sm md:text-base text-zinc-500">Manage nursing visits and caregiver appointments</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" className="rounded-full">
-            <Filter className="w-4 h-4 mr-2" />
-            Filter
-          </Button>
-          <Button className="rounded-full px-6" onClick={() => setIsModalOpen(true)}>
+        <div className="flex gap-2 w-full md:w-auto">
+          <div className="relative flex-1 md:flex-none">
+            <Button 
+              variant="secondary" 
+              className="rounded-full w-full"
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+            >
+              <Filter className="w-4 h-4 mr-2" />
+              Filter
+            </Button>
+            
+            {isFilterOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-zinc-100 z-10 p-2">
+                {['all', 'scheduled', 'pending', 'completed', 'cancelled'].map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => {
+                      setFilterStatus(status);
+                      setIsFilterOpen(false);
+                    }}
+                    className={clsx(
+                      "w-full text-left px-4 py-2 rounded-xl text-sm capitalize transition-colors",
+                      filterStatus === status ? "bg-partners-blue-dark text-white" : "hover:bg-zinc-50 text-zinc-600"
+                    )}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <Button className="rounded-full px-6 flex-1 md:flex-none" onClick={() => setIsModalOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Schedule Visit
           </Button>
@@ -146,8 +203,8 @@ export const Schedule: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Calendar Sidebar Placeholder */}
-        <div className="lg:col-span-1 space-y-6">
+        {/* Calendar Sidebar */}
+        <div className="lg:col-span-1 space-y-6 order-2 lg:order-1">
           <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-bold text-zinc-900">March 2026</h3>
@@ -205,35 +262,35 @@ export const Schedule: React.FC = () => {
         </div>
 
         {/* Visit List */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-4 order-1 lg:order-2">
           <h3 className="text-lg font-bold text-zinc-900 flex items-center gap-2">
             <Clock className="text-partners-blue-dark" size={20} />
-            Upcoming Visits
+            {filterStatus === 'all' ? 'Upcoming Visits' : `${filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} Visits`}
           </h3>
 
           {loading ? (
             Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="h-32 bg-white rounded-3xl border border-zinc-200 animate-pulse"></div>
             ))
-          ) : visits.length === 0 ? (
+          ) : filteredVisits.length === 0 ? (
             <div className="bg-white p-12 rounded-3xl border border-zinc-200 text-center space-y-4">
               <div className="w-16 h-16 bg-zinc-50 rounded-full flex items-center justify-center mx-auto text-zinc-300">
                 <CalendarIcon size={32} />
               </div>
-              <p className="text-zinc-500">No visits scheduled for this period.</p>
-              <Button variant="secondary" size="sm" onClick={() => setIsModalOpen(true)}>Schedule First Visit</Button>
+              <p className="text-zinc-500">No visits found for this filter.</p>
+              <Button variant="secondary" size="sm" onClick={() => { setFilterStatus('all'); setIsModalOpen(true); }}>Schedule Visit</Button>
             </div>
           ) : (
-            visits.map((visit) => (
-              <div key={visit.id} className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm hover:shadow-md transition-shadow group">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-4">
+            filteredVisits.map((visit) => (
+              <div key={visit.id} className="bg-white p-4 md:p-6 rounded-3xl border border-zinc-200 shadow-sm hover:shadow-md transition-shadow group">
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                  <div className="space-y-4 w-full">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-zinc-50 flex items-center justify-center text-partners-blue-dark">
-                        <User size={24} />
+                      <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-zinc-50 flex items-center justify-center text-partners-blue-dark shrink-0">
+                        <User size={20} className="md:w-6 md:h-6" />
                       </div>
-                      <div>
-                        <h4 className="font-bold text-zinc-900">{visit.patient.last_name}, {visit.patient.first_name}</h4>
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-zinc-900 truncate">{visit.patient.last_name}, {visit.patient.first_name}</h4>
                         <p className="text-xs text-zinc-500 flex items-center gap-1">
                           <Clock size={12} />
                           {new Date(visit.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -241,26 +298,35 @@ export const Schedule: React.FC = () => {
                       </div>
                     </div>
                     
-                    <div className="flex gap-6 text-sm text-zinc-600">
+                    <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-zinc-600">
                       <div className="flex items-center gap-2">
                         <MapPin size={16} className="text-zinc-400" />
-                        {visit.location}
+                        <span className="truncate max-w-[150px]">{visit.location}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <User size={16} className="text-zinc-400" />
-                        Staff: {visit.staff.full_name}
+                        <span className="truncate max-w-[150px]">Staff: {visit.staff.full_name}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex flex-col items-end gap-4">
+                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start w-full sm:w-auto gap-4">
                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                       visit.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 
-                      visit.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-zinc-100 text-zinc-600'
+                      visit.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
+                      visit.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-600'
                     }`}>
                       {visit.status}
                     </span>
-                    <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="lg:opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => {
+                        setSelectedVisit(visit);
+                        setIsDetailsModalOpen(true);
+                      }}
+                    >
                       View Details
                     </Button>
                   </div>
@@ -270,6 +336,92 @@ export const Schedule: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Visit Details Modal */}
+      <Modal
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        title="Visit Details"
+        size="md"
+      >
+        {selectedVisit && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-4 p-4 bg-zinc-50 rounded-2xl">
+              <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-partners-blue-dark shadow-sm">
+                <User size={32} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-zinc-900">
+                  {selectedVisit.patient.last_name}, {selectedVisit.patient.first_name}
+                </h3>
+                <p className="text-sm text-zinc-500">Patient</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Scheduled For</p>
+                <div className="flex items-center gap-2 text-zinc-700">
+                  <CalendarIcon size={16} className="text-partners-blue-dark" />
+                  {new Date(selectedVisit.scheduled_at).toLocaleDateString()} at {new Date(selectedVisit.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Location</p>
+                <div className="flex items-center gap-2 text-zinc-700">
+                  <MapPin size={16} className="text-partners-blue-dark" />
+                  {selectedVisit.location}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Assigned Staff</p>
+                <div className="flex items-center gap-2 text-zinc-700">
+                  <User size={16} className="text-partners-blue-dark" />
+                  {selectedVisit.staff.full_name}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Current Status</p>
+                <div className="flex items-center gap-2">
+                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                    selectedVisit.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 
+                    selectedVisit.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
+                    selectedVisit.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-600'
+                  }`}>
+                    {selectedVisit.status}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-4 border-t border-zinc-100">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Update Status</p>
+              <div className="flex flex-wrap gap-2">
+                {['scheduled', 'pending', 'completed', 'cancelled'].map((status) => (
+                  <Button
+                    key={status}
+                    variant={selectedVisit.status === status ? 'primary' : 'secondary'}
+                    size="sm"
+                    className="capitalize"
+                    onClick={() => updateVisitStatus(selectedVisit.id, status)}
+                  >
+                    {status}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-6 border-t border-zinc-100">
+              <Button variant="secondary" onClick={() => setIsDetailsModalOpen(false)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal
         isOpen={isModalOpen}

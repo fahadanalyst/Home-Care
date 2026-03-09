@@ -264,7 +264,7 @@ export const GAFCProgressNote: React.FC = () => {
         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Back to Forms</span>
       </Link>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
         <div>
           <h2 className="text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
             <FileText className="text-partners-green" />
@@ -272,12 +272,13 @@ export const GAFCProgressNote: React.FC = () => {
           </h2>
           <p className="text-partners-gray">Complete the monthly clinical progress note.</p>
         </div>
-        <div className="flex gap-3 no-print">
+        <div className="flex flex-wrap gap-3 no-print w-full md:w-auto">
           <Button 
             variant="secondary" 
             type="button" 
             onClick={handlePrint}
             disabled={isGeneratingPDF}
+            className="flex-1 md:flex-none"
           >
             {isGeneratingPDF ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -290,6 +291,7 @@ export const GAFCProgressNote: React.FC = () => {
             type="button"
             onClick={handleSubmit(onSubmit)}
             disabled={isSubmitting}
+            className="flex-1 md:flex-none"
           >
             <Send className="w-4 h-4 mr-2" />
             {isSubmitting ? 'Submitting...' : 'Submit Note'}

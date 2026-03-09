@@ -22,9 +22,10 @@ import { Schedule } from './pages/Schedule';
 import { ClinicalNotes } from './pages/ClinicalNotes';
 import { Compliance } from './pages/Compliance';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { Shield, Lock, Mail, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Shield, Lock, Mail, AlertCircle, Menu, Eye, EyeOff } from 'lucide-react';
 import { Button } from './components/Button';
 import { supabase, waitForSupabaseInitialization, withTimeout } from './services/supabase';
+import { clsx } from 'clsx';
 
 import { Logo } from './components/Logo';
 
@@ -42,69 +43,55 @@ const Login: React.FC = () => {
     setError(null);
 
     try {
-      // Supabase initialization is already handled in main.tsx and AuthContext
-      console.log('Login: Supabase status check...');
+      // Start Supabase initialization in the background, don't block login
+      console.log('Login: Triggering Supabase warm-up in background...');
+      waitForSupabaseInitialization().catch(err => 
+        console.warn('Login: Background initialization warning:', err)
+      );
     } catch (initErr: any) {
-      console.warn('Login: Initialization check failed:', initErr);
+      console.warn('Login: Initialization trigger failed:', initErr);
     }
     
-    let isTimedOut = false;
-    const loginTimeout = setTimeout(() => {
-      console.warn('Login request timed out after 120s');
-      isTimedOut = true;
-      setLoading(false);
-      setError('Login request timed out. This usually happens if the database connection is interrupted or the service is cold-starting. Please try again or refresh the page.');
-    }, 120000);
-
     try {
       console.log('Calling supabase.auth.signInWithPassword for:', email);
       const startTime = Date.now();
-      
-      // Increase timeout to 110s to give it more room before the global 120s timeout
       const { data, error } = (await withTimeout(
         supabase.auth.signInWithPassword({ 
-          email: email.trim(), 
+          email: email.trim().toLowerCase(), 
           password 
         }),
-        110000
+        120000 // 120s timeout for the sign-in call
       )) as any;
-      
       const duration = Date.now() - startTime;
       console.log(`Supabase sign in response received after ${duration}ms:`, { hasData: !!data, hasError: !!error });
-      
-      if (isTimedOut) return;
-      clearTimeout(loginTimeout);
       
       if (error) {
         console.error('Sign in error details:', error);
         if (error.message === 'Invalid login credentials' || error.message === 'Supabase not configured') {
           setError('Invalid email or password. Please check your credentials and try again.');
-        } else if (error.message.includes('Database error querying schema') || error.message.includes('timeout')) {
-          setError('Connection error or timeout. This can happen during service cold-starts. Please try again in a few seconds.');
+        } else if (error.message.includes('Database error querying schema')) {
+          setError('Database connection error. This usually happens if the .env file is missing or the database is temporarily unavailable. Please contact the administrator.');
         } else {
           setError(error.message);
         }
       } else {
-        console.log('Sign in successful, verifying session...');
-        // We don't need to manually verify here as AuthContext will pick it up
-        // but we can do a quick check to be sure
+        console.log('Sign in successful, verifying session manually...');
         const { data: sessionData } = await supabase.auth.getSession();
-        console.log('Session check result:', !!sessionData?.session?.user);
+        console.log('Manual session check result:', !!sessionData?.session?.user);
+        if (sessionData?.session?.user) {
+          console.log('Session verified, redirecting...');
+        }
       }
     } catch (err: any) {
-      if (isTimedOut) return;
-      clearTimeout(loginTimeout);
       console.error('Unexpected login error caught:', err);
-      
-      if (err.message?.includes('timeout')) {
-        setError('Login request timed out. The service might be cold-starting. Please try again.');
+      if (err.message === 'Operation timed out') {
+        setError('Login request timed out. This can happen if the service is cold-starting. Please try clicking "Sign In" again in a few seconds.');
       } else {
         setError(err.message || 'An unexpected error occurred.');
       }
     } finally {
-      if (!isTimedOut) {
-        setLoading(false);
-      }
+      console.log('Login process finished, clearing loading state');
+      setLoading(false);
     }
   };
 
@@ -148,10 +135,10 @@ const Login: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors p-1"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors p-2"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
           </div>
@@ -191,12 +178,44 @@ const RoleProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles: st
 };
 
 const Layout: React.FC = () => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
-    <div className="flex h-screen bg-zinc-50 overflow-hidden">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto">
-        <Outlet />
-      </main>
+    <div className="flex h-screen bg-zinc-50 overflow-hidden relative">
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={clsx(
+        "fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 lg:relative lg:translate-x-0",
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        <Sidebar onClose={() => setIsSidebarOpen(false)} />
+      </div>
+
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Mobile Header */}
+        <header className="lg:hidden h-16 bg-white border-b border-zinc-200 flex items-center px-4 shrink-0">
+          <button 
+            onClick={() => setIsSidebarOpen(true)}
+            className="p-2 text-zinc-600 hover:bg-zinc-100 rounded-lg"
+          >
+            <Menu size={24} />
+          </button>
+          <div className="ml-4">
+            <Logo size={32} />
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 };

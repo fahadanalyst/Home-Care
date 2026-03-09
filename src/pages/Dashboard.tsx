@@ -62,7 +62,6 @@ export const Dashboard: React.FC = () => {
   const [activityData, setActivityData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSettingUp, setIsSettingUp] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
@@ -492,101 +491,19 @@ ON CONFLICT (name) DO UPDATE SET
   };
 
   return (
-    <div className="p-8 space-y-8 bg-zinc-50 min-h-screen">
-      <div className="flex justify-between items-end">
+    <div className="p-4 md:p-8 space-y-8 bg-zinc-50 min-h-screen">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-zinc-900">Dashboard</h1>
-          <p className="text-zinc-500 mt-1">Welcome back, {profile?.full_name || 'User'}</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-zinc-900">Dashboard</h1>
+          <p className="text-sm md:text-base text-zinc-500 mt-1">Welcome back, {profile?.full_name || 'User'}</p>
         </div>
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="rounded-xl text-zinc-500 hover:text-partners-blue-dark"
-            onClick={() => setShowSettings(true)}
-          >
-            <Settings size={20} />
-          </Button>
-          <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-2xl border border-zinc-200 shadow-sm">
-            <ShieldCheck size={18} className="text-partners-blue-dark" />
-            <span className="text-sm font-medium text-zinc-600">HIPAA Secure Session</span>
+        <div className="flex items-center gap-2 md:gap-4 w-full sm:w-auto">
+          <div className="flex items-center gap-2 px-3 md:px-4 py-2 bg-white rounded-2xl border border-zinc-200 shadow-sm flex-1 sm:flex-none justify-center">
+            <ShieldCheck size={18} className="text-partners-blue-dark shrink-0" />
+            <span className="text-[10px] md:text-sm font-medium text-zinc-600 whitespace-nowrap">HIPAA Secure Session</span>
           </div>
         </div>
       </div>
-
-      <Modal
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
-        title="Database Settings"
-        size="lg"
-      >
-        <div className="space-y-6">
-          <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl">
-            <h4 className="text-sm font-bold text-amber-900 flex items-center gap-2 mb-2">
-              <Database size={16} />
-              Schema Sync
-            </h4>
-            <p className="text-xs text-amber-700 leading-relaxed">
-              If you see "Could not find column" errors, it means the database schema cache is stale. 
-              Please follow these steps:
-            </p>
-            <ol className="mt-3 space-y-2 text-xs text-amber-800 list-decimal list-inside">
-              <li>Copy the SQL script below.</li>
-              <li>Run it in your <strong>Supabase SQL Editor</strong>.</li>
-              <li>Click <strong>Sync & Refresh</strong> below.</li>
-            </ol>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">SQL Migration Script</label>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-7 text-[10px]"
-                onClick={() => {
-                  navigator.clipboard.writeText(sqlScript);
-                  alert('SQL script copied!');
-                }}
-              >
-                Copy Script
-              </Button>
-            </div>
-            <div className="bg-zinc-950 rounded-xl p-4 max-h-48 overflow-y-auto">
-              <pre className="text-[10px] text-zinc-400 font-mono whitespace-pre-wrap">
-                {sqlScript}
-              </pre>
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-4 border-t border-zinc-100">
-            <Button 
-              className="flex-1" 
-              onClick={handleSetupDatabase} 
-              disabled={isSettingUp}
-            >
-              {isSettingUp ? <Loader2 className="animate-spin mr-2" size={16} /> : <Database className="mr-2" size={16} />}
-              Run Auto-Seed
-            </Button>
-            <Button 
-              variant="secondary" 
-              className="flex-1" 
-              onClick={handleRefreshSchema}
-              disabled={isSettingUp}
-            >
-              <RefreshCw className={`mr-2 ${isSettingUp ? 'animate-spin' : ''}`} size={16} />
-              Sync & Refresh
-            </Button>
-          </div>
-          
-          {connectionStatus && (
-            <div className={`p-3 rounded-xl text-xs font-medium ${connectionStatus.success ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
-              Status: {connectionStatus.message}
-            </div>
-          )}
-        </div>
-      </Modal>
-
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 

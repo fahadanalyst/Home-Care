@@ -19,25 +19,16 @@ export const getSupabase = () => {
     return null;
   }
 
-    if (!supabaseInstance) {
-      console.log('Supabase Service: Initializing client with URL:', url);
-      try {
-        supabaseInstance = createClient(url, key, {
-          auth: {
-            persistSession: true,
-            autoRefreshToken: true,
-            detectSessionInUrl: true
-          },
-          global: {
-            headers: { 'x-application-name': 'partners-home-nursing' }
-          }
-        });
-        console.log('Supabase Service: Client initialized successfully');
-      } catch (err) {
-        console.error('Supabase Service: Failed to initialize client:', err);
-        return null;
-      }
+  if (!supabaseInstance) {
+    console.log('Supabase Service: Initializing client with URL:', url);
+    try {
+      supabaseInstance = createClient(url, key);
+      console.log('Supabase Service: Client initialized successfully');
+    } catch (err) {
+      console.error('Supabase Service: Failed to initialize client:', err);
+      return null;
     }
+  }
   return supabaseInstance;
 };
 

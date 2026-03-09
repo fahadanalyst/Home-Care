@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, Profile, UserRole } from '../services/supabase';
 import { Button } from '../components/Button';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 import { UserPlus, Shield, Mail, User as UserIcon, Trash2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 export const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<{ id: string, name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Form state
   const [email, setEmail] = useState('');
@@ -62,30 +65,34 @@ export const UserManagement: React.FC = () => {
 
   const handleDeleteUser = async (userId: string) => {
     setDeleteError(null);
+    setIsDeleting(true);
     try {
       const response = await fetch('/api/admin/delete-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId }),
       });
-
+  
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Failed to delete user');
-
+  
       fetchUsers();
+      setUserToDelete(null);
     } catch (err: any) {
       setDeleteError(err.message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   return (
-    <div className="p-8 space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-partners-blue-dark">User Management</h2>
-          <p className="text-partners-gray">Manage clinical staff and system access roles.</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-partners-blue-dark italic">User Management</h2>
+          <p className="text-sm md:text-base text-partners-gray">Manage clinical staff and system access roles.</p>
         </div>
-        <Button onClick={() => setShowAddModal(true)}>
+        <Button className="rounded-full px-6 w-full sm:w-auto" onClick={() => setShowAddModal(true)}>
           <UserPlus className="w-4 h-4 mr-2" />
           Add New User
         </Button>
@@ -99,55 +106,123 @@ export const UserManagement: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-        <table className="w-full text-left">
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
+        <table className="w-full text-left border-collapse">
           <thead className="bg-zinc-50 border-b border-zinc-200">
             <tr>
               <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">User</th>
               <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Role</th>
               <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Actions</th>
+              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-200">
-            {users.map((user) => (
-              <tr key={user.id} className="hover:bg-zinc-50 transition-colors">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center font-bold text-zinc-600">
-                      {user.full_name?.[0]}
-                    </div>
-                    <div>
-                      <p className="font-medium text-zinc-900">{user.full_name}</p>
-                      <p className="text-xs text-zinc-500">{user.email}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-800 capitalize">
-                    {user.role.replace('_', ' ')}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                    Active
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-red-500 hover:bg-red-50"
-                    onClick={() => handleDeleteUser(user.id)}
-                  >
-                    <Trash2 size={16} />
-                  </Button>
+          <tbody className="divide-y divide-zinc-100">
+            {loading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i} className="animate-pulse">
+                  <td className="px-6 py-4"><div className="h-4 bg-zinc-100 rounded w-32"></div></td>
+                  <td className="px-6 py-4"><div className="h-4 bg-zinc-100 rounded w-24"></div></td>
+                  <td className="px-6 py-4"><div className="h-4 bg-zinc-100 rounded w-16"></div></td>
+                  <td className="px-6 py-4"></td>
+                </tr>
+              ))
+            ) : users.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-6 py-12 text-center text-zinc-500">
+                  No users found.
                 </td>
               </tr>
-            ))}
+            ) : (
+              users.map((user) => (
+                <tr key={user.id} className="hover:bg-zinc-50 transition-colors group">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-partners-blue-dark/10 text-partners-blue-dark flex items-center justify-center font-bold">
+                        {user.full_name?.[0]}
+                      </div>
+                      <div>
+                        <p className="font-bold text-zinc-900">{user.full_name}</p>
+                        <p className="text-xs text-zinc-500">{user.email}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-zinc-100 text-zinc-600">
+                      {user.role.replace('_', ' ')}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                      Active
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => {
+                        setUserToDelete({ id: user.id, name: user.full_name });
+                      }}
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Card List */}
+      <div className="md:hidden space-y-4">
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-32 bg-white rounded-3xl border border-zinc-200 animate-pulse"></div>
+          ))
+        ) : users.length === 0 ? (
+          <div className="bg-white p-12 rounded-3xl border border-zinc-200 text-center text-zinc-500">
+            No users found.
+          </div>
+        ) : (
+          users.map((user) => (
+            <div key={user.id} className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm space-y-4">
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-partners-blue-dark/10 text-partners-blue-dark flex items-center justify-center font-bold">
+                    {user.full_name?.[0]}
+                  </div>
+                  <div>
+                    <p className="font-bold text-zinc-900">{user.full_name}</p>
+                    <p className="text-xs text-zinc-500">{user.email}</p>
+                  </div>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-red-500"
+                  onClick={() => {
+                    setUserToDelete({ id: user.id, name: user.full_name });
+                  }}
+                >
+                  <Trash2 size={16} />
+                </Button>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-zinc-50">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-zinc-100 text-zinc-600">
+                  {user.role.replace('_', ' ')}
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                  Active
+                </span>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {showAddModal && (
@@ -235,6 +310,16 @@ export const UserManagement: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={!!userToDelete}
+        onClose={() => setUserToDelete(null)}
+        onConfirm={() => userToDelete && handleDeleteUser(userToDelete.id)}
+        title="Delete User"
+        message={`Are you sure you want to delete ${userToDelete?.name}? This will permanently remove their access to the system.`}
+        confirmText="Delete User"
+        isLoading={isDeleting}
+      />
     </div>
   );
 };
