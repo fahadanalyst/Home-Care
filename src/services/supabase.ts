@@ -32,6 +32,14 @@ export const getSupabase = () => {
   return supabaseInstance;
 };
 
+/**
+ * Resets the Supabase instance. Useful on sign out to ensure a fresh client.
+ */
+export const resetSupabase = () => {
+  supabaseInstance = null;
+  console.log('Supabase Service: Client instance reset');
+};
+
 // A more robust fallback that supports chaining to prevent TypeErrors
 const createFallback = (methodName: string) => {
   const fallback: any = (...args: any[]) => {

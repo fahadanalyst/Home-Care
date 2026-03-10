@@ -79,7 +79,8 @@ const Login: React.FC = () => {
         const { data: sessionData } = await supabase.auth.getSession();
         console.log('Manual session check result:', !!sessionData?.session?.user);
         if (sessionData?.session?.user) {
-          console.log('Session verified, redirecting...');
+          console.log('Session verified, redirecting via hard reload...');
+          window.location.href = '/';
         }
       }
     } catch (err: any) {

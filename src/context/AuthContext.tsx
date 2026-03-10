@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
-import { supabase, Profile } from '../services/supabase';
+import { supabase, Profile, resetSupabase } from '../services/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -153,6 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Always clear local state and redirect, even if remote sign-out failed/timed out
       setUser(null);
       setProfile(null);
+      resetSupabase();
       
       // Clear storage manually to be safe
       try {
